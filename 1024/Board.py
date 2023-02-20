@@ -179,17 +179,17 @@ class Board:
         num_nth_max = lambda board,sorted, n:len(board[board==nth_max(sorted, n)])
         """ IF the num of nth maximum in current_board is greater than that of previous_board, it is doing great"""
         if np.max(current_board) > np.max(previous_board):
-            return 5
+            return 50
         if num_nth_max(current_board,current_sorted, 1) > num_nth_max(previous_board,current_sorted, 1):
-            return 4
+            return 40
         if num_nth_max(current_board,current_sorted, 2) > num_nth_max(previous_board,current_sorted, 2):
-            return 3
+            return 30
         if num_nth_max(current_board,current_sorted, 3) > num_nth_max(previous_board,current_sorted, 3):
-            return 2
+            return 20
         if num_nth_max(current_board,current_sorted, 4) > num_nth_max(previous_board,current_sorted, 4):
-            return 1
+            return 10
         if np.array_equal(current_board, previous_board):
-            return -5 #invalid
+            return -50 #invalid
         return 0
     
     @staticmethod
