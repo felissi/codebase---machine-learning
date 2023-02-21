@@ -50,12 +50,12 @@ class GameState:
         ]
 
         # player velocity, max velocity, downward accleration, accleration on flap
-        self.pipeVelX      = -3
+        self.pipeVelX      = -5
         self.playerVelY    = 0    # player's velocity along Y, default same as playerFlapped
         self.playerMaxVelY = 10   # max vel along Y, max descend speed
         self.playerMinVelY = -8   # min vel along Y, max ascend speed
         self.playerAccY    = 5   # players downward accleration
-        self.playerFlapAcc = -9   # players speed on flapping
+        self.playerFlapAcc = -8   # players speed on flapping
         self.playerFlapped = False # True when player flaps
         self.player_rot    = 0
 

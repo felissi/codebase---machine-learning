@@ -12,8 +12,8 @@ class QNetwork(nn.Module):
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(32, 16, kernel_size=3, padding=1)
         self.conv3 = nn.Conv2d(16, 8, kernel_size=3, padding=1)
-        self.fc1 = nn.Linear(294912, 32)
-        self.fc2 = nn.Linear(32, action_size)
+        self.fc1 = nn.Linear(294912, 16)
+        self.fc2 = nn.Linear(16, action_size)
         
     def forward(self, x:torch.Tensor):
         """ state -> action values """
@@ -29,5 +29,5 @@ class QNetwork(nn.Module):
         x = self.fc1(x)
         x = nn.functional.relu(x)
         x = self.fc2(x)
-        x = nn.functional.relu(x)
+        # x = nn.functional.relu(x)
         return x
