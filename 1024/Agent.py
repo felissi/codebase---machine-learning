@@ -1,41 +1,19 @@
 import torch
-import torch.nn as nn
 import numpy as np
 import random
 from collections import namedtuple, deque
-from Board import Board
+from typing import Iterable
+from Model import QNetwork as QNetwork
 
-BUFFER_SIZE   = int(1e5)
-BATCH_SIZE    = 64
-GAMMA         = 0.99 # discount factor
-TAU           = 1e-3 # soft update of target parameter
-LEARNING_RATE = 5e-4
-UPDATE_EVERY  = 4    # how often to update the target
+BUFFER_SIZE         = int(1e5)
+BATCH_SIZE          = 64
+GAMMA               = 0.99  # discount factor
+TAU                 = 1e-3  # soft update of target parameter
+LEARNING_RATE       = 5e-4
+UPDATE_EVERY        = 10    # how often to update the local
+TARGET_UPDATE_EVERY = 50    # how often to update the target
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-env = Board()
-
-class QNetwork(nn.Module):
-    """ Agent Policy Network Model """
-    def __init__(self, state_size, action_size):
-        super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(state_size, 64)
-        self.fc2 = nn.Linear(64, 64)
-        self.fc3 = nn.Linear(64, action_size)
-        self.flatten = torch.nn.Flatten()
-        
-    def forward(self, x:torch.Tensor):
-        """ state -> action values """
-        x = self.flatten(x)
-        x = self.fc1(x)
-        x = nn.functional.relu(x)
-        x = self.fc2(x)
-        x = nn.functional.relu(x)
-        x = self.fc3(x)
-        return x
-
-
 class ReplayBuffer:
     """ Fixed size buffer to store experience tuples """
 
@@ -70,16 +48,19 @@ class ReplayBuffer:
         return len(self.memory)
     
 class Agent:
-    def __init__(self, state_size, action_size, learning_rate):
+    def __init__(self, state_size: int, action_size: int, learning_rate: float, buffer_size=BUFFER_SIZE, batch_size=BATCH_SIZE):
         self.state_size = state_size
         self.action_size = action_size
+        self.learning_rate = learning_rate
+        self.buffer_size = buffer_size
+        self.batch_size = batch_size
 
         self.qnetwork_local = QNetwork(state_size, action_size).to(device)
         self.qnetwork_target = QNetwork(state_size, action_size).to(device)
         self.optimizer = torch.optim.Adam(
             self.qnetwork_local.parameters(), lr=learning_rate)
         # replay memory
-        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE)
+        self.memory = ReplayBuffer(action_size, self.buffer_size, self.batch_size)
 
         self.time_step = 0
         self.eps = 0.0
@@ -113,27 +94,45 @@ class Agent:
         action_values = self.q_value(state, eps=eps, train=train)
         return self.decide(action_values, eps=eps)
 
-    def learn(self, experience):
+    def learn(self, experience: Iterable[torch.Tensor]):
         """ Update parameters using batch of experience tuples """
-        states, actions, rewards, next_states, dones = experience
-        q_targets_next = self.qnetwork_target(
-            next_states).detach().max(1)[0].unsqueeze(1)
-        q_targets = rewards+self.gamma*q_targets_next*(1-dones)
-        q_expected = self.qnetwork_local(states).gather(1, actions.type(torch.int64).unsqueeze(1)).squeeze(1)
+        q_current, q_targets = self._double_dqn(experience)
         # Compute the loss and gradient
-        loss = torch.nn.functional.mse_loss(q_expected, q_targets)
+        loss = torch.nn.functional.mse_loss(q_current, q_targets)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        self.soft_update(self.qnetwork_local, self.qnetwork_target, TAU)
         return loss
+
+    def _dqn(self, experience: Iterable[torch.Tensor])->Iterable[torch.Tensor]:
+        states, actions, rewards, next_states, dones = experience
+        rewards = rewards.reshape(self.batch_size,1)
+        dones = dones.reshape(self.batch_size,1)
+        q_targets_next = self.qnetwork_target( next_states).detach().max(1)[0].unsqueeze(1)
+        q_targets = rewards+self.gamma*q_targets_next*(1 - dones)
+        q_current = self.qnetwork_local(states).gather(1, actions.type(torch.int64).unsqueeze(1))
+        return (q_current, q_targets)
+    
+    def _double_dqn(self, experience: Iterable[torch.Tensor])->Iterable[torch.Tensor]:
+        states, actions, rewards, next_states, dones = experience
+        rewards = rewards.reshape(self.batch_size,1)
+        dones = dones.reshape(self.batch_size,1)
+        action_q_local_next = torch.argmax(self.qnetwork_local(next_states),-1)
+        q_targets_next = self.qnetwork_target(next_states).gather(1, action_q_local_next.type(torch.int64).unsqueeze(1))
+        q_targets = rewards+self.gamma*q_targets_next*(1 - dones)
+        q_current = self.qnetwork_local(states).gather(1, actions.type(torch.int64).unsqueeze(1))
+        return (q_current, q_targets)
+
 
     def state_to_features(self, state: np.ndarray):
         return torch.from_numpy(state.flatten()).to(device).float().unsqueeze(0)
 
+    def soft_update(self):
+        self._soft_update(self.qnetwork_local, self.qnetwork_target, TAU)
 
-    def soft_update(self, local_model, target_model, tau):
+    @staticmethod
+    def _soft_update(local_model:torch.nn.Module, target_model:torch.nn.Module, tau: float):
         """ θ_target = τ*θ_local + (1 - τ)*θ_target 
         copy the weights of the local model to the target model
         """
