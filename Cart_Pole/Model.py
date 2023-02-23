@@ -5,14 +5,15 @@ import numpy as np
 import cv2 as cv
 
 ACTION_SIZE = 2
+FRAME_LENGTH = 3
 
 device = torch.device('cuda'if torch.cuda.is_available() else 'cpu')
 
 # https://github.com/lmarza/CartPole-CNN/blob/main/RelazioneProgettoIntelligenzaArtificiale_LucaMarzari.pdf
 class QNetwork(torch.nn.Module):
-    def __init__(self, state_size: int=None, action_size=ACTION_SIZE):
-        super().__init__()
-        self.conv1 = nn.Conv2d(4, 64,kernel_size=5, stride=3) # [B,4,160,240]->[B,64,52,79]
+    def __init__(self, state_size: int=FRAME_LENGTH, action_size=ACTION_SIZE):
+        super(QNetwork, self).__init__()
+        self.conv1 = nn.Conv2d(state_size, 64,kernel_size=5, stride=3) # [B,4,160,240]->[B,64,52,79]
         self.conv2 = nn.Conv2d(64,64,kernel_size=4, stride=2) # [B,64,52,79]->[B,64,25,38]
         self.conv3 = nn.Conv2d(64,64,kernel_size=3, stride=1) # [B,64,25,38]->[B,64,23,36]
         self.flatten = nn.Flatten() # [B,64,23,36]->[B, 52992]

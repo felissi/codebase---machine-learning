@@ -17,12 +17,13 @@ TARGET_UPDATE_EVERY = 50    # how often to update the target
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Agent:
-    def __init__(self, state_size: int, action_size: int, learning_rate: float, buffer_size=BUFFER_SIZE, batch_size=BATCH_SIZE):
+    def __init__(self, state_size: int, action_size: int, learning_rate: float, buffer_size=BUFFER_SIZE, batch_size=BATCH_SIZE, gamma=0.9):
         self.state_size = state_size
         self.action_size = action_size
         self.learning_rate = learning_rate
         self.buffer_size = buffer_size
         self.batch_size = batch_size
+        self.gamma = gamma
 
         self.qnetwork_local = QNetwork(state_size, action_size).to(device)
         self.qnetwork_target = QNetwork(state_size, action_size).to(device)
@@ -32,8 +33,6 @@ class Agent:
         self.memory = ReplayBuffer(self.buffer_size, self.batch_size)
 
         self.time_step = 0
-        self.eps = 0.0
-        self.gamma = 0.9
 
     def step(self, state, action, reward, next_state, done):
         self.memory.add(state, action, reward, next_state, done)
@@ -67,9 +66,13 @@ class Agent:
         """ Update parameters using batch of experience tuples """
         q_current, q_targets = self._double_dqn(experience)
         # Compute the loss and gradient
-        loss = torch.nn.functional.mse_loss(q_current, q_targets)
+        criterion = torch.nn.SmoothL1Loss()
+        loss = criterion(q_current, q_targets)
+        
+        # loss = torch.nn.functional.mse_loss(q_current, q_targets)
         self.optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad.clip_grad_value_(self.qnetwork_local.parameters(), 100)
         self.optimizer.step()
 
         return loss
@@ -78,7 +81,8 @@ class Agent:
         states, actions, rewards, next_states, dones = experience
         rewards = rewards.reshape(self.batch_size,1)
         dones = dones.reshape(self.batch_size,1)
-        q_targets_next = self.qnetwork_target( next_states).detach().max(1)[0].unsqueeze(1)
+        with torch.no_grad():
+            q_targets_next = self.qnetwork_target( next_states).detach().max(1)[0].unsqueeze(1)
         q_targets = rewards+self.gamma*q_targets_next*(1 - dones)
         q_current = self.qnetwork_local(states).gather(1, actions.type(torch.int64).unsqueeze(1))
         return (q_current, q_targets)
@@ -88,9 +92,11 @@ class Agent:
         rewards = rewards.reshape(self.batch_size,1)
         dones = dones.reshape(self.batch_size,1)
         action_q_local_next = torch.argmax(self.qnetwork_local(next_states),-1)
-        q_targets_next = self.qnetwork_target(next_states).gather(1, action_q_local_next.type(torch.int64).unsqueeze(1))
+        with torch.no_grad():
+            q_targets_next = self.qnetwork_target(next_states).gather(1, action_q_local_next.type(torch.int64).unsqueeze(1))
         q_targets = rewards+self.gamma*q_targets_next*(1 - dones)
         q_current = self.qnetwork_local(states).gather(1, actions.type(torch.int64).unsqueeze(1))
+        print('(q_current, q_targets):',(q_current, q_targets))
         return (q_current, q_targets)
 
 
