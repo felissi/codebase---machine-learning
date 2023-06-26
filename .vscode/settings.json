@@ -1,4 +1,35 @@
 {
     "editor.tabCompletion": "on",
-    "diffEditor.codeLens": true
+    "diffEditor.codeLens": true,
+    // "editor.semanticTokenColorCustomizations": {
+    //     /* 
+    //     Python
+    //     Semantic token types
+
+    //     class, enum
+    //     parameter, variable, property, enumMember
+    //     function, member
+    //     module
+    //     intrinsic
+    //     magicFunction (dunder methods)
+    //     selfParameter, clsParameter
+    //     Semantic token modifiers
+
+    //     declaration
+    //     readonly, static, abstract
+    //     async
+    //     typeHint, typeHintComment
+    //     decorator
+    //     builtin 
+    //     */
+    //     "enabled": true,
+    //     "rules": {
+    //         "magicFunction:python": "#ee0000",
+    //         "function.declaration:python": "#990000",
+    //         "*.decorator:python": "#0000dd",
+    //         "*.typeHint:python": "#5500aa",
+    //         "*.typeHintComment:python": "#aaaaaa"
+    //     }
+    //     // }
+    // }
 }
